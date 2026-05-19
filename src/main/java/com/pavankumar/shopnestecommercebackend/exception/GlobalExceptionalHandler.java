@@ -3,14 +3,14 @@ package com.pavankumar.shopnestecommercebackend.exception;
 import com.pavankumar.shopnestecommercebackend.dto.ApiResponse;
 import com.razorpay.RazorpayException;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.ConstraintViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-
-
 import java.util.stream.Collectors;
 
 @RestControllerAdvice
@@ -30,6 +30,13 @@ public class GlobalExceptionalHandler {
         return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
                 .body(ApiResponse.
                         error(exception.getMessage(), request.getRequestURI()));
+    }
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<ApiResponse<Void>> handleConstraintViolation(
+            ConstraintViolationException exception,
+            HttpServletRequest request) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error(exception.getMessage(), request.getRequestURI()));
     }
     @ExceptionHandler(SignatureVerificationException.class)
     public ResponseEntity<ApiResponse<Void>> handleBadRequest
@@ -89,14 +96,22 @@ public class GlobalExceptionalHandler {
 
                 .body(ApiResponse.error(message,request.getRequestURI()));
     }
-    @ExceptionHandler(RuntimeException.class)
-    public ResponseEntity<ApiResponse<Void>> handleInternalServer
-            (RuntimeException exception,HttpServletRequest request){
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ApiResponse<Void>> handleInternalServer(
+            Exception exception, HttpServletRequest request) {
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ApiResponse.error
-                        (exception.getMessage(), request.getRequestURI()));
+                .body(ApiResponse.error("Internal server error", request.getRequestURI()));
     }
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ApiResponse<Void>> handleInvalidJson(
+            HttpMessageNotReadableException exception,
+            HttpServletRequest request) {
 
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error(
+                        exception.getMessage(),
+                        request.getRequestURI()));
+    }
 
 
 

@@ -37,7 +37,7 @@ public class UserAddress {
     @Column(nullable = false)  private String pincode;
 
     @Builder.Default
-    @Column(name = "is_default")
+    @Column(name = "is_default",nullable = false)
     private Boolean isDefault=false;
 
 

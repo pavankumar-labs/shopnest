@@ -37,6 +37,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         try {
             String email = jwtUtil.extractEmail(token);
             if (email == null) {
+                entryPoint.commence(request, response, new BadCredentialsException("Invalid token"));
                 return;
             }
             if (SecurityContextHolder.getContext().getAuthentication() == null) {
@@ -48,21 +49,27 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                     authenticationToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                     SecurityContextHolder.getContext().setAuthentication(authenticationToken);
                 }
+                else {
+                    entryPoint.commence(request, response,
+                            new BadCredentialsException("Token is invalid"));
+                    return;
+                }
+
 
             }
-            filterChain.doFilter(request, response);
         }
         catch (ExpiredJwtException e) {
             SecurityContextHolder.clearContext();
-            entryPoint.commence(request,response,new BadCredentialsException("expired token"));
+            entryPoint.commence(request,response
+                    ,new BadCredentialsException("expired token"));
+            return;
         }
         catch (JwtException e) {
             SecurityContextHolder.clearContext();
             entryPoint.commence(request, response,
                     new BadCredentialsException("Invalid token"));
-        } catch (Exception e) {
-            SecurityContextHolder.clearContext();
-            entryPoint.commence(request,response,new BadCredentialsException("Authentication failed"));
+            return;
         }
+        filterChain.doFilter(request, response);
     }
 }

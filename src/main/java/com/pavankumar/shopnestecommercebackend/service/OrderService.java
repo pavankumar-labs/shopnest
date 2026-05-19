@@ -1,6 +1,5 @@
 package com.pavankumar.shopnestecommercebackend.service;
 
-import com.pavankumar.shopnestecommercebackend.exception.InsufficientStockException;
 import com.pavankumar.shopnestecommercebackend.repository.*;
 import com.pavankumar.shopnestecommercebackend.util.AuthUtil;
 import com.pavankumar.shopnestecommercebackend.dto.OrderItemResponse;
@@ -9,13 +8,16 @@ import com.pavankumar.shopnestecommercebackend.dto.PlaceOrderRequest;
 import com.pavankumar.shopnestecommercebackend.exception.BadRequestException;
 import com.pavankumar.shopnestecommercebackend.exception.ResourceNotFoundException;
 import com.pavankumar.shopnestecommercebackend.model.*;
+import io.micrometer.core.annotation.Timed;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
+import com.pavankumar.shopnestecommercebackend.event.OrderCancelledEvent;
 
 @Service
 @RequiredArgsConstructor
@@ -29,7 +31,12 @@ public class OrderService {
     private final InventoryService inventoryService;
     private final PaymentRepository paymentRepository;
    private  final StockService stockService;
+    private final ApplicationEventPublisher applicationEventPublisher;
 
+    @Timed(
+            value = "shopnest.order.processing.time",
+            description = "Time taken to process an order"
+    )
     @Transactional
     public OrderResponse placeOrder(PlaceOrderRequest request) {
         User user = util.getCurrentUser();
@@ -100,14 +107,40 @@ public class OrderService {
         inventoryService.restoreStock(order);
         order.setStatus(OrderStatus.CANCELLED);
         Order savedOrder = orderRepository.save(order);
-        emailService.sendOrderCancellation(user.getEmail(), user.getName(), orderId);
+        applicationEventPublisher.publishEvent(
+                new OrderCancelledEvent(
+                        savedOrder.getId(),
+                        user.getEmail(),
+                        user.getName()
+                ));
         return mapToOrderResponse(savedOrder);
     }
 
     @Transactional
     public OrderResponse updateStatus(Long orderId, OrderStatus newStatus) {
+
         Order order = orderRepository.findByIdWithItems(orderId)
-                .orElseThrow(() -> new ResourceNotFoundException("Order not found"));
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("Order not found"));
+        OrderStatus currentStatus = order.getStatus();
+
+        boolean validTransition =
+                (currentStatus == OrderStatus.PENDING
+                        && (newStatus == OrderStatus.CONFIRMED
+                        || newStatus == OrderStatus.CANCELLED))
+
+                        || (currentStatus == OrderStatus.CONFIRMED
+                        && newStatus == OrderStatus.SHIPPED)
+
+                        || (currentStatus == OrderStatus.SHIPPED
+                        && newStatus == OrderStatus.DELIVERED);
+
+        if (!validTransition) {
+            throw new BadRequestException(
+                    "Invalid order status transition from "
+                            + currentStatus + " to " + newStatus);
+        }
+
         order.setStatus(newStatus);
         return mapToOrderResponse(orderRepository.save(order));
     }
@@ -132,6 +165,7 @@ public class OrderService {
                 .createdAt(order.getCreatedAt())
                 .build();
     }
+
     @Transactional
     public void handleFailedPayment(Payment payment) {
         payment.setStatus(PaymentStatus.FAILED);
@@ -140,7 +174,6 @@ public class OrderService {
         Order order = payment.getOrder();
         order.setStatus(OrderStatus.CANCELLED);
         orderRepository.save(order);
-
         inventoryService.restoreStock(order);
     }
 

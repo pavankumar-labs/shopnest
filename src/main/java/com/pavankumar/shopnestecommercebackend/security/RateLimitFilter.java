@@ -5,13 +5,14 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
-
 import java.io.IOException;
 import java.time.Duration;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class RateLimitFilter extends OncePerRequestFilter {
@@ -29,23 +30,27 @@ public class RateLimitFilter extends OncePerRequestFilter {
             HttpServletRequest request, HttpServletResponse response,
             FilterChain filterChain
             ) throws IOException, ServletException {
-        String path=request.getRequestURI();
+        String path=request.getRequestURI().split("\\?")[0];
+        ;
         String identifier=getIdentifier(request,path);
         int limit=getLimitForPath(path);
         String redisKey="rate_limit:"+identifier+":"+path;
-        Long count=redisTemplate.opsForValue().increment(redisKey);
-        if (count==1){
-            redisTemplate.expire(redisKey,window);
+        try{
+            redisTemplate.opsForValue().setIfAbsent(redisKey, "0", window);
+            Long count = redisTemplate.opsForValue().increment(redisKey);
+            if(count>limit){
+                response.setStatus(429);
+                response.setContentType("application/json");
+                response.getWriter().write(
+                        "{\"success\":false," +
+                                "\"message\":\"Too many requests. " +
+                                "Try again in 1 minute\"}"
+                );
+                return;
         }
-        if(count>limit){
-            response.setStatus(429);
-            response.setContentType("application/json");
-            response.getWriter().write(
-                    "{\"success\":false," +
-                            "\"message\":\"Too many requests. " +
-                            "Try again in 1 minute\"}"
-            );
-            return;
+        } catch (Exception e) {
+            log.error("Redis unavailable, skipping rate limit: "
+                    , e);
         }
         filterChain.doFilter(request,response);
     }

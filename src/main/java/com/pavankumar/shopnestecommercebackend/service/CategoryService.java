@@ -15,7 +15,6 @@ import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
-
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -48,10 +47,8 @@ public class CategoryService {
         return mapToResponse(category);
     }
 
-    @Caching(
-            put = @CachePut(value = CacheConfig.CATEGORIES,key = "#id"),
-            evict = @CacheEvict(value = CacheConfig.CATEGORIES,allEntries = true)
-    )
+
+    @CacheEvict(value = CacheConfig.CATEGORIES,allEntries = true)
     public CategoryResponse updateCategory(Long id,CategoryRequest request){
 
         Category category=categoryRepository.findById(id)
@@ -84,7 +81,8 @@ public class CategoryService {
     @Cacheable(value = CacheConfig.CATEGORIES,key = "'categoryList'",unless = "#result.isEmpty()")
     public List<CategoryResponse> getAllCategories(){
         return categoryRepository.findAll().stream()
-                .map(this::mapToResponse).collect(Collectors.toList());
+                .map(this::mapToResponse)
+                .toList();
     }
 
     private CategoryResponse mapToResponse(Category category){

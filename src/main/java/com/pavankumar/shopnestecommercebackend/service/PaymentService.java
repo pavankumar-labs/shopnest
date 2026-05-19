@@ -1,5 +1,6 @@
 package com.pavankumar.shopnestecommercebackend.service;
 
+import com.pavankumar.shopnestecommercebackend.exception.BadRequestException;
 import com.pavankumar.shopnestecommercebackend.util.AuthUtil;
 import com.pavankumar.shopnestecommercebackend.dto.PaymentOrderResponse;
 import com.pavankumar.shopnestecommercebackend.dto.PaymentVerifyRequest;
@@ -17,6 +18,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
+
 
 
 @Service
@@ -44,6 +46,27 @@ public class PaymentService {
         User user=util.getCurrentUser();
         Order order=orderRepository.findByIdAndUserId(orderId, user.getId())
                 .orElseThrow(()->new ResourceNotFoundException("Order not found"));
+        if (order.getStatus() != OrderStatus.PENDING) {
+            throw new BadRequestException("Payment can only be created for pending orders");
+        }
+        Payment existingPayment = paymentRepository.findByOrder(order).orElse(null);
+
+        if (existingPayment != null) {
+            if (existingPayment.getStatus() == PaymentStatus.CREATED) {
+                return PaymentOrderResponse.builder()
+                        .keyID(key)
+                        .razorpayOrderId(existingPayment.getRazorpayOrderId())
+                        .currency(currency)
+                        .amount(existingPayment.getAmount())
+                        .build();
+            }
+
+            if (existingPayment.getStatus() == PaymentStatus.SUCCESS) {
+                throw new BadRequestException("Payment already completed for this order");
+            }
+        }
+
+
         int amountInPaise=order.getTotalAmount()
                 .multiply(BigDecimal.valueOf(100)).intValue();
         RazorpayClient client=new RazorpayClient(key,secretKey);
@@ -72,27 +95,29 @@ public class PaymentService {
         attributes.put("razorpay_payment_id",paymentRequest.getRazorpayPaymentId());
         attributes.put("razorpay_order_id",paymentRequest.getRazorpayOrderId());
         attributes.put("razorpay_signature",paymentRequest.getSignature());
-        boolean isValid= Utils.verifyPaymentSignature(attributes,secretKey);
         Payment payment=paymentRepository
                 .findByRazorpayOrderIdWithLock(paymentRequest.getRazorpayOrderId())
                 .orElseThrow(()->new ResourceNotFoundException("Payment not found"));
+        if (payment.getStatus() == PaymentStatus.SUCCESS) {
+            return "Payment already verified";
+        }
+        boolean isValid= Utils.verifyPaymentSignature(attributes,secretKey);
         if(!(isValid)){
                 orderService.handleFailedPayment(payment);
             throw new SignatureVerificationException("Payment Signature verification failed");
         }
 
-        if (payment.getStatus() == PaymentStatus.SUCCESS) {
-            return "Payment already verified";
+        Order order=payment.getOrder();
+        if(order.getStatus()!=OrderStatus.PENDING){
+            return "Order already finalized. Refund required.";
         }
-
         payment.setRazorpayPaymentId(paymentRequest.getRazorpayPaymentId());
         payment.setStatus(PaymentStatus.SUCCESS);
         paymentRepository.save(payment);
 
-        Order order=orderRepository.findById(payment.getOrder().getId())
-                .orElseThrow(()->new ResourceNotFoundException("Order not found"));
         order.setStatus(OrderStatus.CONFIRMED);
         orderRepository.save(order);
+
         emailService.sendOrderConfirmation
                 (order.getUser().getEmail(),order.getUser().getName()
                         , order.getId(),order.getTotalAmount() );

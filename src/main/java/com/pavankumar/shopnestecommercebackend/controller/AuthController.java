@@ -6,6 +6,7 @@ import com.pavankumar.shopnestecommercebackend.dto.LoginRequest;
 import com.pavankumar.shopnestecommercebackend.dto.RegisterRequest;
 import com.pavankumar.shopnestecommercebackend.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -16,7 +17,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
-
+@SecurityRequirements()
 public class AuthController {
     private final UserService userService;
 
@@ -25,7 +26,7 @@ public class AuthController {
     public ResponseEntity<ApiResponse<AuthResponse>> register
             (@Valid @RequestBody RegisterRequest request){
         AuthResponse response=userService.register(request);
-        return ResponseEntity.ok(ApiResponse
+        return ResponseEntity.status(201).body(ApiResponse
                 .success(response,"User successfully registered"));
     }
     @Operation(summary = "Login to existing User")

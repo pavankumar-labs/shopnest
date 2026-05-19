@@ -48,7 +48,8 @@ public class WebhookService {
         } catch (SignatureVerificationException e) {
             throw e;
         } catch (Exception e) {
-            throw new RuntimeException("Webhook processing failed");
+            throw new RuntimeException(
+                    "Webhook processing failed", e);
         }
     }
 
@@ -76,16 +77,17 @@ public class WebhookService {
             if (payment.getStatus() == PaymentStatus.SUCCESS) {
                 return "Already processed";
             }
+            Order order = payment.getOrder();
+            if(order.getStatus()!=OrderStatus.PENDING) {
+                return "Order already finalized. Refund required.";
+            }
 
             payment.setRazorpayPaymentId(razorpayPaymentId);
             payment.setStatus(PaymentStatus.SUCCESS);
             paymentRepository.save(payment);
 
-            Order order = orderRepository.findById(payment.getOrder().getId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Order not found"));
             order.setStatus(OrderStatus.CONFIRMED);
             orderRepository.save(order);
-
             emailService.sendOrderConfirmation(
                     order.getUser().getEmail(),
                     order.getUser().getName(),

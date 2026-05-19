@@ -68,7 +68,8 @@ public class CartService {
                     .build();
             cartItemRepository.save(cartItem);
         }
-       return mapToResponse(cartRepository.findByUserIdWithItems(user.getId()).get());
+       return mapToResponse(cartRepository.findByUserIdWithItems(user.getId()).orElseThrow(() ->
+               new ResourceNotFoundException("Cart not found")));
     }
 
     public CartResponse removefromCart(Long cartItemId){
@@ -81,7 +82,8 @@ public class CartService {
             throw new UnauthorisedException("You cannot remove items from another user's cart");
         }
         cartItemRepository.delete(cartItem);
-        return mapToResponse(cartRepository.findByUserIdWithItems(user.getId()).get());
+        return mapToResponse(cartRepository.findByUserIdWithItems(user.getId()).orElseThrow(() ->
+                new ResourceNotFoundException("Cart not found")));
     }
     public void clearCart(){
         User user=util.getCurrentUser();

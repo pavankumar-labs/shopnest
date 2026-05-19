@@ -5,6 +5,7 @@ import com.pavankumar.shopnestecommercebackend.dto.PageResponse;
 import com.pavankumar.shopnestecommercebackend.dto.ProductRequest;
 import com.pavankumar.shopnestecommercebackend.dto.ProductResponse;
 import com.pavankumar.shopnestecommercebackend.service.ProductService;
+import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -21,7 +22,6 @@ import java.util.List;
 public class ProductController {
     private final ProductService productService;
 
-
     @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @PostMapping
     public ResponseEntity<ApiResponse<ProductResponse>> create
@@ -32,6 +32,7 @@ public class ProductController {
     }
 
     @GetMapping
+    @SecurityRequirements()
     public ResponseEntity<ApiResponse<List<ProductResponse>>> getAll(){
         List<ProductResponse> responses=productService.getAllProducts();
         return ResponseEntity.ok(ApiResponse
@@ -79,11 +80,13 @@ public class ProductController {
     }
 
     @GetMapping("/search/paginated")
-    public ResponseEntity<PageResponse<ProductResponse>> searchProductsPaginated(
+    public ResponseEntity<ApiResponse<PageResponse<ProductResponse>>> searchProductsPaginated(
                       @RequestParam String keyword,
                       @RequestParam(defaultValue = "0") int page ,
                       @RequestParam(defaultValue = "10") int size){
-        return ResponseEntity.ok(productService.searchProductsPaginated(keyword,page,size));
+        PageResponse<ProductResponse> response=productService
+                                                         .searchProductsPaginated(keyword,page,size);
+        return ResponseEntity.ok(ApiResponse.success(response,"products searched successfully"));
     }
 
     @GetMapping("/paginated")

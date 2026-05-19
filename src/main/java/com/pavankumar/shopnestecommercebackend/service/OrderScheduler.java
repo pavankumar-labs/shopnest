@@ -7,11 +7,9 @@ import com.pavankumar.shopnestecommercebackend.model.PaymentStatus;
 import com.pavankumar.shopnestecommercebackend.repository.OrderRepository;
 import com.pavankumar.shopnestecommercebackend.repository.PaymentRepository;
 import lombok.RequiredArgsConstructor;
-
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -25,7 +23,7 @@ public class OrderScheduler {
     private final InventoryService inventoryService;
 
     @Transactional
-    @Scheduled(fixedRate = 6000)
+    @Scheduled(fixedRate = 90000)
     public void cancelAbandonedOrders(){
         LocalDateTime cutoff=LocalDateTime.now().minusMinutes(7);
 
@@ -36,20 +34,17 @@ public class OrderScheduler {
         }
         for(Order order:abandonedOrders){
            Payment payment= paymentRepository.findByOrder(order).orElse(null);
-           if(payment!=null && payment.getStatus()== PaymentStatus.SUCCESS){
-               continue;
-           }
+        if (payment != null) {
+            if (payment.getStatus() == PaymentStatus.SUCCESS) {
+                continue;
+            }
 
-           if(payment!=null){
-               orderService.handleFailedPayment(payment);
-           }
-           else {
-               order.setStatus(OrderStatus.CANCELLED);
-               orderRepository.save(order);
-               inventoryService.restoreStock(order);
-           }
+            if (payment.getStatus() == PaymentStatus.FAILED || payment.getStatus() == PaymentStatus.CANCELLED) {
+                continue;
+            }
 
-
+            orderService.handleFailedPayment(payment);
         }
+    }
     }
 }

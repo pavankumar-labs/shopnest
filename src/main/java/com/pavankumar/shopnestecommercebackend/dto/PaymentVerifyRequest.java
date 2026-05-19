@@ -18,6 +18,5 @@ public class PaymentVerifyRequest {
     private String razorpayPaymentId;
     @NotBlank
     private String signature;
-    @NotNull
-    private Long orderId;
+
 }

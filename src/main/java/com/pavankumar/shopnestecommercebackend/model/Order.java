@@ -39,7 +39,7 @@ public class Order {
     private BigDecimal totalAmount;
 
 
-    @OneToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name="shipping_address", nullable = false)
     private UserAddress userAddress;
 

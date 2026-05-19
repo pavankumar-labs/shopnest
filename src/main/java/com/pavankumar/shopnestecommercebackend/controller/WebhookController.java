@@ -17,8 +17,8 @@ public class WebhookController {
     public ResponseEntity<ApiResponse<String>> handleRazorpayWebhook(
             @RequestBody String payload,
             @RequestHeader("x-razorpay-signature") String signature) {
-        String reponse = webhookService.handleWebhook(payload, signature);
+        String response = webhookService.handleWebhook(payload, signature);
         return ResponseEntity.status(200)
-                .body(ApiResponse.success(reponse, "Webhook payment verified"));
+                .body(ApiResponse.success(response, "Webhook payment verified"));
     }
 }

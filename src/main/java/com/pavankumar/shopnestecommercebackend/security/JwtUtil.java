@@ -16,9 +16,9 @@ import java.util.Date;
 @Component
 public class JwtUtil {
 
-    @Value("${jwt.secret}")
+    @Value("${JWT_SECRET}")
     private String secret;
-    @Value("${jwt.expiration}")
+    @Value("${JWT_EXPIRATION}")
     private long expiration;
 
     private Key getSigningKey(){
@@ -40,7 +40,7 @@ public class JwtUtil {
                 .compact();
     }
 
-    private Claims getBody(String token){
+    private Claims parseToken(String token){
         return Jwts.parserBuilder()
                 .setSigningKey(getSigningKey())
                 .build()
@@ -49,19 +49,20 @@ public class JwtUtil {
     }
 
     public String extractEmail(String token){
-        return getBody(token).getSubject();
+        return parseToken(token).getSubject();
     }
 
     public String extractRole(String token){
-        return getBody(token).get("role",String.class);
-    }
-    public  boolean isExpired(String token){
-       return getBody(token).getExpiration().before(new Date());
+        return parseToken(token).get("role",String.class);
     }
 
+
     public boolean isTokenValid(String token, UserDetails userDetails){
-        String email=extractEmail(token);
-        return email.equals(userDetails.getUsername()) && !isExpired(token);
+        Claims claims=parseToken(token);
+        String email=claims.getSubject();
+        Date expiration=claims.getExpiration();
+        return email!=null && email.equals(userDetails.getUsername()) &&
+                expiration!=null &&  expiration.after(new Date());
     }
 
 }

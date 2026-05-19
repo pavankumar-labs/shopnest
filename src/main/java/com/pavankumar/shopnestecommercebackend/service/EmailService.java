@@ -1,14 +1,14 @@
 package com.pavankumar.shopnestecommercebackend.service;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.scheduling.annotation.Async;
-
 import org.springframework.stereotype.Service;
-
 import java.math.BigDecimal;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class EmailService {
@@ -17,6 +17,7 @@ public class EmailService {
     public void sendOrderConfirmation
             (String email, String userName, Long orderId, BigDecimal totalAmount){
         try{
+
             SimpleMailMessage mailMessage=new SimpleMailMessage();
             mailMessage.setTo(email);
             mailMessage.setSubject("ShopNest — Order Confirmed #" + orderId);
@@ -30,7 +31,7 @@ public class EmailService {
             mailSender.send(mailMessage);
         }
         catch (Exception e){
-            System.err.println("Failed to send email: " + e.getMessage());
+            log.error("Failed to send email: " ,e);
         }
     }
     @Async
@@ -47,7 +48,7 @@ public class EmailService {
             );
             mailSender.send(mailMessage);
         } catch (Exception e) {
-            System.err.println("Failed to send email: " + e.getMessage());
+            log.error("Failed to send email: " ,e);
         }
     }
 }

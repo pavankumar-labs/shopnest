@@ -20,5 +20,4 @@ public class AddressResponse {
         private String country;
         private String pincode;
         private Boolean isDefault;
-
 }
