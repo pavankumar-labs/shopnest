@@ -66,8 +66,8 @@ public class UserService  {
             Authentication authentication=authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(request.getEmail(),request.getPassword()));
             UserDetails userDetails=(UserDetails) authentication.getPrincipal();
-            successCounter.increment();
             String token= jwtUtil.generateToken(userDetails);
+            successCounter.increment();
             return AuthResponse.builder()
                     .token(token)
                     .role(jwtUtil.extractRoleFromUserDetails(userDetails))

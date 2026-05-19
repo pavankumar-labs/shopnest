@@ -45,6 +45,11 @@ public class OrderScheduler {
 
             orderService.handleFailedPayment(payment);
         }
+        else {
+            order.setStatus(OrderStatus.CANCELLED);
+            orderRepository.save(order);
+            inventoryService.restoreStock(order);
+        }
     }
     }
 }

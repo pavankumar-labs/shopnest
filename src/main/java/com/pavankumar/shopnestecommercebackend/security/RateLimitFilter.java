@@ -31,7 +31,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
             FilterChain filterChain
             ) throws IOException, ServletException {
         String path=request.getRequestURI().split("\\?")[0];
-        ;
+
         String identifier=getIdentifier(request,path);
         int limit=getLimitForPath(path);
         String redisKey="rate_limit:"+identifier+":"+path;

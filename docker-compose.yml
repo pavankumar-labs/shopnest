@@ -4,8 +4,10 @@ services:
   mysql-container:
     image: mysql:8.0
     container_name: mysql-container
+    env_file:
+      - .env
     environment:
-      MYSQL_ROOT_PASSWORD: Pavan@001
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
       MYSQL_DATABASE: shopnest_db
 
     ports:
@@ -14,7 +16,7 @@ services:
       - shopnest-mysql-data:/var/lib/mysql
 
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-pPavan@001"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_PASSWORD}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -52,8 +54,10 @@ services:
       - "3000:3000"
     volumes:
       - grafana_data:/var/lib/grafana
+    env_file:
+      - .env
     environment:
-      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD}
     networks:
       - shopnest-network
 
@@ -64,6 +68,8 @@ services:
       - REDIS_ADDR=redis://redis-container:6379
     ports:
       - "9121:9121"
+    depends_on:
+      - redis-container
     networks:
       - shopnest-network
 

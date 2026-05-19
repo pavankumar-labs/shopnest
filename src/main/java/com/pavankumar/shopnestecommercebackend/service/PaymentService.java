@@ -12,6 +12,7 @@ import com.pavankumar.shopnestecommercebackend.repository.PaymentRepository;
 import com.razorpay.RazorpayClient;
 import com.razorpay.RazorpayException;
 import com.razorpay.Utils;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Value;
@@ -39,7 +40,12 @@ public class PaymentService {
 
     @Value("${razorpay.currency}")
     private String currency;
+    private RazorpayClient razorpayClient;
 
+    @PostConstruct
+    public void init() throws RazorpayException {
+        this.razorpayClient = new RazorpayClient(key, secretKey);
+    }
 
     @Transactional
     public PaymentOrderResponse createPaymentOrder(Long orderId ) throws RazorpayException {
@@ -66,14 +72,12 @@ public class PaymentService {
             }
         }
 
-
         int amountInPaise=order.getTotalAmount()
                 .multiply(BigDecimal.valueOf(100)).intValue();
-        RazorpayClient client=new RazorpayClient(key,secretKey);
         JSONObject orderRequest=new JSONObject();
         orderRequest.put("amount",amountInPaise);
         orderRequest.put("currency",currency);
-        com.razorpay.Order razorpayOrder=client.orders.create(orderRequest);
+        com.razorpay.Order razorpayOrder=razorpayClient.orders.create(orderRequest);
         Payment payment=Payment.builder()
                 .razorpayOrderId(razorpayOrder.get("id"))
                 .amount(order.getTotalAmount())
