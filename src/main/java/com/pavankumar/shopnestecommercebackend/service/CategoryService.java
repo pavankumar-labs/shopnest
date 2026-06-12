@@ -57,7 +57,7 @@ public class CategoryService {
         if(!(category.getName().equals(request.getName()))
                 && categoryRepository.existsByName(request.getName())){
             throw new ResourceAlreadyExistsException
-                    ( "Category already exists: "+category.getName());
+                    ( "Category already exists: "+request.getName());
         }
         category.setName(request.getName());
         category.setDescription(request.getDescription());

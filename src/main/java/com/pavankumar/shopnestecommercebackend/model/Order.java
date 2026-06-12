@@ -28,6 +28,7 @@ public class Order {
     @JoinColumn(name = "user_id",nullable = false)
     private User user;
 
+    @Builder.Default
     @OneToMany(mappedBy = "order",cascade = CascadeType.ALL,orphanRemoval = true)
     private List<OrderItem> items=new ArrayList<>();
 
@@ -42,6 +43,10 @@ public class Order {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name="shipping_address", nullable = false)
     private UserAddress userAddress;
+
+    @Builder.Default
+    @Column(name = "stock_restored", nullable = false)
+    private boolean stockRestored = false;
 
     @CreationTimestamp
     @Column(name = "created_at",updatable = false)

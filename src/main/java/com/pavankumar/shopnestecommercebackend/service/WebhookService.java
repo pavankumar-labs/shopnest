@@ -88,12 +88,6 @@ public class WebhookService {
 
             order.setStatus(OrderStatus.CONFIRMED);
             orderRepository.save(order);
-            emailService.sendOrderConfirmation(
-                    order.getUser().getEmail(),
-                    order.getUser().getName(),
-                    order.getId(),
-                    order.getTotalAmount());
-
             return "Webhook processed successfully";
 
         }

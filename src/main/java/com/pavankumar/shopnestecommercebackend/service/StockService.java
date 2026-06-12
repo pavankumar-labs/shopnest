@@ -24,7 +24,7 @@ public class StockService {
             maxAttempts = 3,
             backoff = @Backoff(delay = 100)
     )
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @Transactional(propagation = Propagation.MANDATORY)
     public void deductStock(Product product, int quantity) {
         Product freshProduct = productRepository
                 .findById(product.getId())

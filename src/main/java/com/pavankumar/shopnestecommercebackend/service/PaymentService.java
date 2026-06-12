@@ -21,7 +21,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 
 
-
 @Service
 @RequiredArgsConstructor
 public class PaymentService {
@@ -40,6 +39,7 @@ public class PaymentService {
 
     @Value("${razorpay.currency}")
     private String currency;
+    
     private RazorpayClient razorpayClient;
 
     @PostConstruct
@@ -55,7 +55,7 @@ public class PaymentService {
         if (order.getStatus() != OrderStatus.PENDING) {
             throw new BadRequestException("Payment can only be created for pending orders");
         }
-        Payment existingPayment = paymentRepository.findByOrder(order).orElse(null);
+        Payment existingPayment = paymentRepository.findByOrderWithLock(order).orElse(null);
 
         if (existingPayment != null) {
             if (existingPayment.getStatus() == PaymentStatus.CREATED) {
@@ -72,8 +72,8 @@ public class PaymentService {
             }
         }
 
-        int amountInPaise=order.getTotalAmount()
-                .multiply(BigDecimal.valueOf(100)).intValue();
+       long amountInPaise=order.getTotalAmount()
+                .multiply(BigDecimal.valueOf(100)).longValueExact();
         JSONObject orderRequest=new JSONObject();
         orderRequest.put("amount",amountInPaise);
         orderRequest.put("currency",currency);

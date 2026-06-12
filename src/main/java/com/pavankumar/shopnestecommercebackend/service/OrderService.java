@@ -25,7 +25,6 @@ public class OrderService {
     
     private final CartRepository cartRepository;
     private final OrderRepository orderRepository;
-    private final EmailService emailService;
     private final AuthUtil util;
     private final AddressRepository addressRepository;
     private final InventoryService inventoryService;
@@ -140,7 +139,15 @@ public class OrderService {
                     "Invalid order status transition from "
                             + currentStatus + " to " + newStatus);
         }
-
+        if (newStatus == OrderStatus.CANCELLED) {
+            inventoryService.restoreStock(order);
+            applicationEventPublisher.publishEvent(
+                    new OrderCancelledEvent(
+                            orderId,
+                            order.getUser().getEmail(),
+                            order.getUser().getName()
+                    ));
+        }
         order.setStatus(newStatus);
         return mapToOrderResponse(orderRepository.save(order));
     }

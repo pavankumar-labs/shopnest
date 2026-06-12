@@ -53,16 +53,12 @@ razorpay:
   webhook:
     secret: ${RAZORPAY_WEBHOOK_SECRET}
 
-jwt:
-  secret: ${JWT_SECRET}
-  expiration: ${JWT_EXPIRATION}
-
 
 management:
   endpoints:
     web:
       exposure:
-        include: "*"
+        include: "health,info,metrics,prometheus"
       base-path: /actuator
   endpoint:
     health:
@@ -72,3 +68,8 @@ logging:
   level:
     root: INFO
     org.springframework: INFO
+
+scheduler:
+  rate-ms: 90000
+  cutoff-minutes: 15
+

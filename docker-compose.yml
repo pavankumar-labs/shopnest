@@ -32,6 +32,12 @@ services:
       - "6380:6379"
     networks:
       - shopnest-network
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
 
 
   prometheus-container:
@@ -87,7 +93,7 @@ services:
         mysql-container:
           condition: service_healthy
         redis-container:
-          condition: service_started
+          condition: service_healthy
 
     networks:
       - shopnest-network
