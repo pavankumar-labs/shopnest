@@ -33,7 +33,7 @@ public class InventoryService {
         if (lockedOrder.isStockRestored()) {
             return;
         }
-        for(OrderItem item: order.getItems()){
+        for(OrderItem item: lockedOrder.getItems()){
             Product product=item.getProduct();
             product.setStock(product.getStock() + item.getQuantity());
             productRepository.save(product);
