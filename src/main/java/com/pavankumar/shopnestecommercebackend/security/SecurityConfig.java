@@ -50,6 +50,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth->auth
                         .requestMatchers("/api/auth/**","/api/webhook/razorpay").permitAll()
                         .requestMatchers("/actuator/health").permitAll()
+                        .requestMatchers("/actuator/prometheus").permitAll()
                         .requestMatchers("/actuator/**").hasAuthority("ROLE_ADMIN")
                         .requestMatchers("/swagger-ui/**", "/api-docs/**","/api-docs","/swagger-ui.html").permitAll()
                         .anyRequest().authenticated())
