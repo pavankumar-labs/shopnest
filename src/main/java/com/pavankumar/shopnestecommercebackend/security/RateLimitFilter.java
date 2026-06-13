@@ -32,6 +32,12 @@ public class RateLimitFilter extends OncePerRequestFilter {
             ) throws IOException, ServletException {
         String path=request.getRequestURI().split("\\?")[0];
 
+        if (path.startsWith("/actuator") ||
+                path.startsWith("/swagger-ui") ||
+                path.startsWith("/api-docs")) {
+            filterChain.doFilter(request, response);
+            return;
+        }
         String identifier=getIdentifier(request,path);
         int limit=getLimitForPath(path);
         String redisKey="rate_limit:"+identifier+":"+path;
