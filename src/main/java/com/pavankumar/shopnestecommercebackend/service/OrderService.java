@@ -29,8 +29,9 @@ public class OrderService {
     private final AddressRepository addressRepository;
     private final InventoryService inventoryService;
     private final PaymentRepository paymentRepository;
-   private  final StockService stockService;
+    private  final StockService stockService;
     private final ApplicationEventPublisher applicationEventPublisher;
+    private final PaymentService paymentService;
 
     @Timed(
             value = "shopnest.order.processing.time",
@@ -96,22 +97,35 @@ public class OrderService {
 
     @Transactional
     public OrderResponse cancelOrder(Long orderId) {
+
         User user = util.getCurrentUser();
         Order order = orderRepository.findByIdAndUserIdWithItems(orderId, user.getId())
                 .orElseThrow(() -> new ResourceNotFoundException
                         ("Order Not Found: " + orderId));
-        if (order.getStatus() != OrderStatus.PENDING) {
-            throw new BadRequestException("Only PENDING orders can be cancelled");
+
+        if (order.getStatus() != OrderStatus.CONFIRMED) {
+            throw new BadRequestException(
+                    "Only CONFIRMED orders can be cancelled");
         }
-        inventoryService.restoreStock(order);
-        order.setStatus(OrderStatus.CANCELLED);
+
+
+        Payment payment = paymentRepository
+                .findByOrderWithLock(order)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Payment not found for order: " + orderId));
+
+        if (payment.getStatus() != PaymentStatus.SUCCESS) {
+            throw new BadRequestException(
+                    "Only successfully paid orders can be cancelled");
+        }
+
+
+        order.setStatus(OrderStatus.CANCELLATION_PENDING);
         Order savedOrder = orderRepository.save(order);
-        applicationEventPublisher.publishEvent(
-                new OrderCancelledEvent(
-                        savedOrder.getId(),
-                        user.getEmail(),
-                        user.getName()
-                ));
+
+        paymentService.initiateRefund(payment);
+
         return mapToOrderResponse(savedOrder);
     }
 
@@ -183,5 +197,12 @@ public class OrderService {
         orderRepository.save(order);
         inventoryService.restoreStock(order);
     }
+
+    @Transactional
+    public void markPaymentAttemptFailed(Payment payment) {
+        payment.setStatus(PaymentStatus.FAILED);
+        paymentRepository.save(payment);
+    }
+
 
 }

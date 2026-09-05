@@ -32,6 +32,9 @@ public class Payment {
     @Column(name = "razorpay_payment_id",unique = true)
     private String razorpayPaymentId;
 
+    @Column(name = "razorpay_refund_id", unique = true)
+    private String razorpayRefundId;
+
     @Column(nullable = false)
     @Enumerated(value = EnumType.STRING)
     private PaymentStatus status;
