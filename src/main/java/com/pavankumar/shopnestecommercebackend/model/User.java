@@ -31,6 +31,13 @@ public class User {
     private String password;
 
     @Enumerated(EnumType.STRING)
+    @Column(name = "auth_type", nullable = false)
+    private AuthType authType;
+
+    @Column(name = "google_id", unique = true)
+    private String googleId;
+
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Role role;
 
