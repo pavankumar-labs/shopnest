@@ -29,6 +29,8 @@ public class PaymentService {
     private final EmailService emailService;
     private final AuthUtil util;
     private final OrderService orderService;
+    private final RazorpayGateway razorpayGateway;
+    private final InventoryService inventoryService;
 
 
     @Value("${razorpay.key.id}")
@@ -47,36 +49,40 @@ public class PaymentService {
         this.razorpayClient = new RazorpayClient(key, secretKey);
     }
 
+
     @Transactional
     public PaymentOrderResponse createPaymentOrder(Long orderId ) throws RazorpayException {
+
         User user=util.getCurrentUser();
         Order order=orderRepository.findByIdAndUserId(orderId, user.getId())
                 .orElseThrow(()->new ResourceNotFoundException("Order not found"));
+
         if (order.getStatus() != OrderStatus.PENDING) {
             throw new BadRequestException("Payment can only be created for pending orders");
         }
+
         Payment existingPayment = paymentRepository.findByOrderWithLock(order).orElse(null);
 
         if (existingPayment != null) {
-            if (existingPayment.getStatus() == PaymentStatus.CREATED) {
-                return PaymentOrderResponse.builder()
+            if (existingPayment.getStatus() == PaymentStatus.SUCCESS) {
+                throw new BadRequestException("Payment already completed for this order");
+            }
+
+            return PaymentOrderResponse.builder()
                         .keyID(key)
                         .razorpayOrderId(existingPayment.getRazorpayOrderId())
                         .currency(currency)
                         .amount(existingPayment.getAmount())
                         .build();
-            }
-
-            if (existingPayment.getStatus() == PaymentStatus.SUCCESS) {
-                throw new BadRequestException("Payment already completed for this order");
-            }
         }
 
        long amountInPaise=order.getTotalAmount()
                 .multiply(BigDecimal.valueOf(100)).longValueExact();
+
         JSONObject orderRequest=new JSONObject();
         orderRequest.put("amount",amountInPaise);
         orderRequest.put("currency",currency);
+        orderRequest.put("payment_capture", true);
         com.razorpay.Order razorpayOrder=razorpayClient.orders.create(orderRequest);
         Payment payment=Payment.builder()
                 .razorpayOrderId(razorpayOrder.get("id"))
@@ -84,7 +90,9 @@ public class PaymentService {
                 .status(PaymentStatus.CREATED)
                 .order(order)
                 .build();
+
         paymentRepository.save(payment);
+
         return PaymentOrderResponse.builder()
                 .keyID(key)
                 .razorpayOrderId(razorpayOrder.get("id"))
@@ -95,19 +103,23 @@ public class PaymentService {
 
     @Transactional
     public  String verifyPayment(PaymentVerifyRequest paymentRequest) throws RazorpayException{
-        JSONObject attributes=new JSONObject();
-        attributes.put("razorpay_payment_id",paymentRequest.getRazorpayPaymentId());
-        attributes.put("razorpay_order_id",paymentRequest.getRazorpayOrderId());
-        attributes.put("razorpay_signature",paymentRequest.getSignature());
+
         Payment payment=paymentRepository
                 .findByRazorpayOrderIdWithLock(paymentRequest.getRazorpayOrderId())
                 .orElseThrow(()->new ResourceNotFoundException("Payment not found"));
+
         if (payment.getStatus() == PaymentStatus.SUCCESS) {
             return "Payment already verified";
         }
+
+        JSONObject attributes=new JSONObject();
+        attributes.put("razorpay_payment_id",paymentRequest.getRazorpayPaymentId());
+        attributes.put("razorpay_order_id",payment.getRazorpayOrderId());
+        attributes.put("razorpay_signature",paymentRequest.getSignature());
+
         boolean isValid= Utils.verifyPaymentSignature(attributes,secretKey);
         if(!(isValid)){
-                orderService.handleFailedPayment(payment);
+               // orderService.handleFailedPayment(payment);
             throw new SignatureVerificationException("Payment Signature verification failed");
         }
 
@@ -115,6 +127,7 @@ public class PaymentService {
         if(order.getStatus()!=OrderStatus.PENDING){
             return "Order already finalized. Refund required.";
         }
+
         payment.setRazorpayPaymentId(paymentRequest.getRazorpayPaymentId());
         payment.setStatus(PaymentStatus.SUCCESS);
         paymentRepository.save(payment);
@@ -122,10 +135,107 @@ public class PaymentService {
         order.setStatus(OrderStatus.CONFIRMED);
         orderRepository.save(order);
 
-        emailService.sendOrderConfirmation
-                (order.getUser().getEmail(),order.getUser().getName()
-                        , order.getId(),order.getTotalAmount() );
+        emailService.sendOrderConfirmation(
+                order.getUser().getEmail(),
+                order.getUser().getName(),
+                order.getId(),
+                order.getTotalAmount()
+        );
+
         return "Payment verified.  Order Confirmed.";
     }
 
-}
+
+    @Transactional
+    public String initiateRefund(Payment payment) {
+
+        if (payment.getStatus() != PaymentStatus.SUCCESS) {
+            throw new BadRequestException(
+                    "Refund can only be initiated for a successful payment"
+            );
+        }
+
+
+        String razorpayPaymentId =
+                payment.getRazorpayPaymentId();
+
+        if (razorpayPaymentId == null ||
+                razorpayPaymentId.isBlank()) {
+
+            throw new BadRequestException(
+                    "Razorpay payment ID not found"
+            );
+        }
+
+        String idempotencyKey =
+                "shopnest-refund-" + payment.getId();
+
+        RazorpayGateway.RefundResponse refundResponse =
+                razorpayGateway.createRefund(
+                        razorpayPaymentId,
+                        payment.getAmount(),
+                        idempotencyKey
+                );
+
+        payment.setRazorpayRefundId(
+                refundResponse.refundId()
+        );
+
+        payment.setStatus(PaymentStatus.REFUND_PENDING);
+
+        paymentRepository.save(payment);
+
+        return "Refund initiated successfully";
+
+
+    }
+
+    @Transactional
+    public void reconcileRefund(Payment payment) {
+
+        if (payment.getStatus() != PaymentStatus.REFUND_PENDING) {
+            return;
+        }
+
+        if (payment.getRazorpayRefundId() == null) {
+            return;
+        }
+
+        RazorpayGateway.RefundResponse refundResponse =
+                razorpayGateway.fetchRefund(
+                        payment.getRazorpayRefundId()
+                );
+
+        String refundStatus =
+                refundResponse.status();
+
+        if ("pending".equalsIgnoreCase(refundStatus)) {
+
+            return;
+        }
+
+
+        Order order = payment.getOrder();
+
+        if ("processed".equalsIgnoreCase(refundStatus)) {
+
+            payment.setStatus(PaymentStatus.REFUNDED);
+            paymentRepository.save(payment);
+
+            order.setStatus(OrderStatus.CANCELLED);
+            orderRepository.save(order);
+
+            inventoryService.restoreStock(order);
+
+        }
+        if ("failed".equalsIgnoreCase(refundStatus)) {
+
+            payment.setStatus(PaymentStatus.REFUND_FAILED);
+            paymentRepository.save(payment);
+
+            order.setStatus(OrderStatus.CANCELLATION_REJECTED);
+            orderRepository.save(order);
+
+        }
+
+    }}

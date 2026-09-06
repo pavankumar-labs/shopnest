@@ -23,13 +23,14 @@ public class OrderScheduler {
    private final OrderService orderService;
     private final InventoryService inventoryService;
 
-    @Value("${scheduler.cutoff-minutes:15}")
+    @Value("${scheduler.cutoff-minutes:10}")
     private int cutoffMinutes;
 
 
     @Transactional
     @Scheduled(fixedRateString ="${scheduler.rate-ms:90000}" )
     public void cancelAbandonedOrders(){
+
         LocalDateTime cutoff=LocalDateTime.now().minusMinutes(cutoffMinutes);
 
         List<Order> abandonedOrders=orderRepository
@@ -37,6 +38,7 @@ public class OrderScheduler {
         if (abandonedOrders.isEmpty()) {
             return;
         }
+
         for(Order order:abandonedOrders){
            Payment payment= paymentRepository.findByOrderWithLock(order).orElse(null);
         if (payment != null) {
@@ -44,7 +46,7 @@ public class OrderScheduler {
                 continue;
             }
 
-            if (payment.getStatus() == PaymentStatus.FAILED || payment.getStatus() == PaymentStatus.CANCELLED) {
+            if (payment.getStatus() == PaymentStatus.REFUNDED) {
                 continue;
             }
 
