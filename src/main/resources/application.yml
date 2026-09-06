@@ -12,17 +12,6 @@ spring:
     password: ${DB_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
 
-  mail:
-    host: smtp.gmail.com
-    port: 587
-    username: ${MAIL_USERNAME}
-    password: ${MAIL_PASSWORD}
-    properties:
-      mail:
-        smtp:
-          auth: true
-          starttls:
-            enable: true
 
   cache:
     redis:
@@ -57,8 +46,6 @@ razorpay:
 management:
   endpoints:
     web:
-      exposure:
-        include: "health,info,metrics,prometheus"
       base-path: /actuator
   endpoint:
     health:
