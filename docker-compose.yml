@@ -39,46 +39,6 @@ services:
       retries: 5
 
 
-
-  prometheus-container:
-    image: prom/prometheus
-    container_name: prometheus-container
-    volumes:
-      - ./prometheus.yml:/etc/prometheus/prometheus.yml
-      - ./rules.yml:/etc/prometheus/rules.yml
-      - prometheus_data:/prometheus
-    ports:
-      - "9090:9090"
-    networks:
-      - shopnest-network
-
-
-  grafana-container:
-    image: grafana/grafana
-    container_name: grafana-container
-    ports:
-      - "3000:3000"
-    volumes:
-      - grafana_data:/var/lib/grafana
-    env_file:
-      - .env
-    environment:
-      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD}
-    networks:
-      - shopnest-network
-
-  redis-exporter:
-    image: oliver006/redis_exporter:latest
-    container_name: redis-exporter
-    environment:
-      - REDIS_ADDR=redis://redis-container:6379
-    ports:
-      - "9121:9121"
-    depends_on:
-      - redis-container
-    networks:
-      - shopnest-network
-
   shopnest-app:
     build: .
     container_name: shopnest-app
@@ -104,5 +64,3 @@ networks:
 
 volumes:
   shopnest-mysql-data:
-  prometheus_data:
-  grafana_data:

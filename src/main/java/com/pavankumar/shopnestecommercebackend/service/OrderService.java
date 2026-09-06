@@ -8,7 +8,6 @@ import com.pavankumar.shopnestecommercebackend.dto.PlaceOrderRequest;
 import com.pavankumar.shopnestecommercebackend.exception.BadRequestException;
 import com.pavankumar.shopnestecommercebackend.exception.ResourceNotFoundException;
 import com.pavankumar.shopnestecommercebackend.model.*;
-import io.micrometer.core.annotation.Timed;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
@@ -32,10 +31,7 @@ public class OrderService {
    private  final StockService stockService;
     private final ApplicationEventPublisher applicationEventPublisher;
 
-    @Timed(
-            value = "shopnest.order.processing.time",
-            description = "Time taken to process an order"
-    )
+
     @Transactional
     public OrderResponse placeOrder(PlaceOrderRequest request) {
         User user = util.getCurrentUser();

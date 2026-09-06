@@ -8,9 +8,6 @@ import com.pavankumar.shopnestecommercebackend.model.Role;
 import com.pavankumar.shopnestecommercebackend.model.User;
 import com.pavankumar.shopnestecommercebackend.repository.UserRepository;
 import com.pavankumar.shopnestecommercebackend.security.JwtUtil;
-import io.micrometer.core.instrument.Counter;
-import io.micrometer.core.instrument.MeterRegistry;
-import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -27,21 +24,9 @@ public class UserService  {
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
     private final JwtUtil jwtUtil;
-    private  Counter successCounter;
-    private   Counter failCounter;
-    private final MeterRegistry registry;
 
-    @PostConstruct
-    public void initMetrics(){
-        this.successCounter= Counter.builder("shopnest.login.attempts")
-                .tag("result", "success")
-                .description("Total successful login attempts")
-                .register(registry);
-        this.failCounter= Counter.builder("shopnest.login.attempts")
-                .tag("result", "failure")
-                .description("Total failed login attempts")
-                .register(registry);
-    }
+
+
 
 
     public AuthResponse register(RegisterRequest request){
@@ -67,14 +52,13 @@ public class UserService  {
                     new UsernamePasswordAuthenticationToken(request.getEmail(),request.getPassword()));
             UserDetails userDetails=(UserDetails) authentication.getPrincipal();
             String token= jwtUtil.generateToken(userDetails);
-            successCounter.increment();
+
             return AuthResponse.builder()
                     .token(token)
                     .role(jwtUtil.extractRoleFromUserDetails(userDetails))
                     .message("login successful")
                     .build();
         } catch (BadCredentialsException e) {
-            failCounter.increment();
              throw e;
         }
     }
