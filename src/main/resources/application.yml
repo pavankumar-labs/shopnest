@@ -11,8 +11,6 @@ spring:
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
-
-
   cache:
     redis:
       cache-null-values: false
@@ -22,6 +20,26 @@ spring:
     redis:
       timeout: 6000
       connect-timeout: 6000
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID}
+            client-secret: ${GOOGLE_CLIENT_SECRET}
+            scope:
+              - email
+              - profile
+brevo:
+  api:
+    key: ${BREVO_API_KEY}
+    base-url: https://api.brevo.com/v3
+  sender:
+    email: ${BREVO_SENDER_EMAIL}
+    name: ${BREVO_SENDER_NAME}
+
+
+
 
 
 server:
@@ -34,6 +52,7 @@ springdoc:
   api-docs:
     path: /api-docs
 
+
 razorpay:
   key:
     id: ${RAZORPAY_KEY_ID}
@@ -41,8 +60,8 @@ razorpay:
   currency: INR
   webhook:
     secret: ${RAZORPAY_WEBHOOK_SECRET}
-
-
+  api:
+    base-url: https://api.razorpay.com/v1
 management:
   endpoints:
     web:
@@ -56,7 +75,11 @@ logging:
     root: INFO
     org.springframework: INFO
 
+
 scheduler:
   rate-ms: 90000
   cutoff-minutes: 15
+  refund-reconciliation-delay-ms: 3600000
 
+app:
+  frontend-url: ${APP_FRONTEND_URL}

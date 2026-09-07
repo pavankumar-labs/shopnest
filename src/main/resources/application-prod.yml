@@ -14,5 +14,5 @@ spring:
 
 logging:
   level:
-    com.shopnest: INFO
+    com.pavankumar.shopnestecommercebackend: INFO
     org.hibernate.SQL: ERROR

@@ -20,7 +20,7 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
+
 
 @Service
 @RequiredArgsConstructor
@@ -69,7 +69,7 @@ public class CartService {
             cartItemRepository.save(cartItem);
         }
        return mapToResponse(cartRepository.findByUserIdWithItems(user.getId()).orElseThrow(() ->
-               new ResourceNotFoundException("Cart not found")));
+               new ResourceNotFoundException("Cart is not found")));
     }
 
     public CartResponse removefromCart(Long cartItemId){
@@ -114,7 +114,7 @@ public class CartService {
                         .quantity(item.getQuantity())
                         .subTotal(item.getProduct().getPrice()
                                 .multiply(BigDecimal.valueOf(item.getQuantity())))
-                        .build()).collect(Collectors.toList());
+                        .build()).toList();
         BigDecimal total=cartResponseList.stream()
                 .map(CartItemResponse::getSubTotal).
                 reduce(BigDecimal.ZERO,BigDecimal::add);

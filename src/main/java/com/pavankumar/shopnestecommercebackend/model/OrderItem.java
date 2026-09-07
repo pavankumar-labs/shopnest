@@ -2,7 +2,6 @@ package com.pavankumar.shopnestecommercebackend.model;
 
 import jakarta.persistence.*;
 import lombok.*;
-
 import java.math.BigDecimal;
 
 @Entity
@@ -18,6 +17,7 @@ public class OrderItem {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @ToString.Exclude
     @ManyToOne(fetch =FetchType.LAZY)
     @JoinColumn(name = "order_id",nullable = false)
     private Order order;

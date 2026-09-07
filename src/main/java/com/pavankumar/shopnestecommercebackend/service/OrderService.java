@@ -9,14 +9,12 @@ import com.pavankumar.shopnestecommercebackend.exception.BadRequestException;
 import com.pavankumar.shopnestecommercebackend.exception.ResourceNotFoundException;
 import com.pavankumar.shopnestecommercebackend.model.*;
 import lombok.RequiredArgsConstructor;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
-import com.pavankumar.shopnestecommercebackend.event.OrderCancelledEvent;
 
 @Service
 @RequiredArgsConstructor
@@ -29,7 +27,6 @@ public class OrderService {
     private final InventoryService inventoryService;
     private final PaymentRepository paymentRepository;
     private  final StockService stockService;
-    private final ApplicationEventPublisher applicationEventPublisher;
     private final PaymentService paymentService;
 
 
@@ -151,12 +148,6 @@ public class OrderService {
         }
         if (newStatus == OrderStatus.CANCELLED) {
             inventoryService.restoreStock(order);
-            applicationEventPublisher.publishEvent(
-                    new OrderCancelledEvent(
-                            orderId,
-                            order.getUser().getEmail(),
-                            order.getUser().getName()
-                    ));
         }
         order.setStatus(newStatus);
         return mapToOrderResponse(orderRepository.save(order));

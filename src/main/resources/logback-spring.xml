@@ -39,6 +39,10 @@
                <message>
                    <fieldName>message</fieldName>
                </message>
+
+               <stackTrace>
+                   <fieldName>stack_trace</fieldName>
+               </stackTrace>
            </providers>
     </encoder>
     </appender>

@@ -1,15 +1,14 @@
 package com.pavankumar.shopnestecommercebackend.model;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+
+
 
 @Entity
 @Data
@@ -17,7 +16,6 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-
 public class Order {
 
     @Id
@@ -28,6 +26,7 @@ public class Order {
     @JoinColumn(name = "user_id",nullable = false)
     private User user;
 
+    @ToString.Exclude
     @Builder.Default
     @OneToMany(mappedBy = "order",cascade = CascadeType.ALL,orphanRemoval = true)
     private List<OrderItem> items=new ArrayList<>();

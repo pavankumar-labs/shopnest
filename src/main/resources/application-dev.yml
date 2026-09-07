@@ -16,5 +16,5 @@ spring:
 
 logging:
   level:
-    com.shopnest: DEBUG
+    com.pavankumar.shopnestecommercebackend: DEBUG
     org.hibernate.SQL: DEBUG

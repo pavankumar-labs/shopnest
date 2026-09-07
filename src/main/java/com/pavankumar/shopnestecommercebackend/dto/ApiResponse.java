@@ -5,6 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 
 @Data
 @AllArgsConstructor
@@ -22,7 +23,7 @@ public class ApiResponse<T> {
                 .success(true)
                 .message(message)
                 .data(data)
-                .timestamp(LocalDateTime.now().toString())
+                .timestamp(LocalDateTime.now(ZoneOffset.UTC).toString())
                 .build();
     }
 
@@ -32,7 +33,7 @@ public class ApiResponse<T> {
                 .data(null)
                 .message(message)
                 .path(path)
-                .timestamp(LocalDateTime.now().toString())
+                .timestamp(LocalDateTime.now(ZoneOffset.UTC).toString())
                 .build();
     }
 

@@ -1,13 +1,8 @@
 package com.pavankumar.shopnestecommercebackend.model;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-import org.hibernate.annotations.CreationTimestamp;
+import lombok.*;
 
-import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "cart_items")
@@ -20,6 +15,7 @@ public class CartItem {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @ToString.Exclude
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "cart_id",nullable = false)
     private Cart cart;

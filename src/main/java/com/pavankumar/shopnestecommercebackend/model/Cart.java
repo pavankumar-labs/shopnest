@@ -1,10 +1,7 @@
 package com.pavankumar.shopnestecommercebackend.model;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 import jakarta.persistence.CascadeType;
 import org.hibernate.annotations.CreationTimestamp;
 import java.time.LocalDateTime;
@@ -26,6 +23,7 @@ public class Cart {
     @JoinColumn(name = "user_id",unique = true,nullable = false)
     private User user;
 
+    @ToString.Exclude
     @OneToMany(mappedBy = "cart", fetch = FetchType.LAZY,cascade = CascadeType.ALL,orphanRemoval=true)
     private List<CartItem> items=new ArrayList<>();
 

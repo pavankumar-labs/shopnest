@@ -28,7 +28,6 @@ public class PaymentService {
     private final PaymentRepository paymentRepository;
     private final EmailService emailService;
     private final AuthUtil util;
-    private final OrderService orderService;
     private final RazorpayGateway razorpayGateway;
     private final InventoryService inventoryService;
 
@@ -119,7 +118,7 @@ public class PaymentService {
 
         boolean isValid= Utils.verifyPaymentSignature(attributes,secretKey);
         if(!(isValid)){
-               // orderService.handleFailedPayment(payment);
+
             throw new SignatureVerificationException("Payment Signature verification failed");
         }
 
