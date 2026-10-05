@@ -29,7 +29,7 @@ class OrderRepositoryFindAbandonedOrdersTest extends AbstractIntegrationTest {
     private void setUpSharedGraph() {
         category = entityManager.persist(TestData.uniqueCategory().build());
         product = entityManager.persist(TestData.product(1, category).build());
-        user = entityManager.persist(TestData.user(1).build());
+        user = entityManager.persist(TestData.uniqueUser().build());
         address = entityManager.persist(TestData.address(user).build());
     }
 
