@@ -10,15 +10,21 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.dao.OptimisticLockingFailureException;
+
 import java.math.BigDecimal;
 import java.util.Optional;
-import static org.junit.jupiter.api.Assertions.*;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class StockServiceTest {
+
     @Mock
     private ProductRepository productRepository;
 
@@ -36,65 +42,96 @@ class StockServiceTest {
 
     @Test
     void deductStock_sufficientStock_decrementsAndSaves() {
+
         Product requested = productWithStock(1L, 10);
         Product fresh = productWithStock(1L, 10);
 
-        when(productRepository.findById(1L)).thenReturn(Optional.of(fresh));
+        when(productRepository.findByIdForUpdate(1L))
+                .thenReturn(Optional.of(fresh));
+
         stockService.deductStock(requested, 3);
 
-        verify(productRepository).findById(1L);
-        ArgumentCaptor<Product> savedCaptor = ArgumentCaptor.forClass(Product.class);
-        verify(productRepository).save(savedCaptor.capture());
-        assertEquals(7, savedCaptor.getValue().getStock());
+        verify(productRepository)
+                .findByIdForUpdate(1L);
+
+        ArgumentCaptor<Product> savedCaptor =
+                ArgumentCaptor.forClass(Product.class);
+
+        verify(productRepository)
+                .save(savedCaptor.capture());
+
+        assertEquals(
+                7,
+                savedCaptor.getValue().getStock()
+        );
     }
 
     @Test
     void deductStock_quantityExactlyEqualsStock_succeedsAndStockBecomesZero() {
+
         Product requested = productWithStock(1L, 5);
         Product fresh = productWithStock(1L, 5);
 
-        when(productRepository.findById(1L)).thenReturn(Optional.of(fresh));
+        when(productRepository.findByIdForUpdate(1L))
+                .thenReturn(Optional.of(fresh));
+
         stockService.deductStock(requested, 5);
 
-        ArgumentCaptor<Product> savedCaptor = ArgumentCaptor.forClass(Product.class);
-        verify(productRepository).save(savedCaptor.capture());
-        assertEquals(0, savedCaptor.getValue().getStock());
+        verify(productRepository)
+                .findByIdForUpdate(1L);
+
+        ArgumentCaptor<Product> savedCaptor =
+                ArgumentCaptor.forClass(Product.class);
+
+        verify(productRepository)
+                .save(savedCaptor.capture());
+
+        assertEquals(
+                0,
+                savedCaptor.getValue().getStock()
+        );
     }
 
     @Test
     void deductStock_insufficientStock_throwsAndNeverSaves() {
+
         Product requested = productWithStock(1L, 2);
         Product fresh = productWithStock(1L, 2);
 
-        when(productRepository.findById(1L)).thenReturn(Optional.of(fresh));
-        InsufficientStockException thrown = assertThrows(InsufficientStockException.class,
-                () -> stockService.deductStock(requested, 5));
+        when(productRepository.findByIdForUpdate(1L))
+                .thenReturn(Optional.of(fresh));
 
-        assertTrue(thrown.getMessage().contains("Stock is Unavailable"));
-        verify(productRepository, never()).save(any(Product.class));
+        InsufficientStockException thrown = assertThrows(
+                InsufficientStockException.class,
+                () -> stockService.deductStock(requested, 5)
+        );
+
+        assertTrue(
+                thrown.getMessage().contains("Stock is Unavailable")
+        );
+
+        verify(productRepository, never())
+                .save(any(Product.class));
     }
 
     @Test
     void deductStock_productNotFound_throwsAndNeverSaves() {
+
         Product requested = productWithStock(99L, 10);
 
-        when(productRepository.findById(99L)).thenReturn(Optional.empty());
-        ResourceNotFoundException thrown = assertThrows(ResourceNotFoundException.class,
-                () -> stockService.deductStock(requested, 3));
+        when(productRepository.findByIdForUpdate(99L))
+                .thenReturn(Optional.empty());
 
-        assertTrue(thrown.getMessage().contains("Product not found"));
-        verify(productRepository, never()).save(any(Product.class));
-    }
+        ResourceNotFoundException thrown = assertThrows(
+                ResourceNotFoundException.class,
+                () -> stockService.deductStock(requested, 3)
+        );
 
-    @Test
-    void recover_anyOptimisticLockingFailure_alwaysThrowsInsufficientStockException() {
-        Product product = productWithStock(1L, 10);
-        OptimisticLockingFailureException conflict =
-                new OptimisticLockingFailureException("version mismatch");
+        assertTrue(
+                thrown.getMessage().contains("Product not found")
+        );
 
-        InsufficientStockException thrown = assertThrows(InsufficientStockException.class,
-                () -> stockService.recover(conflict, product, 3));
-
-        assertEquals("Too many conflicts — please try again later", thrown.getMessage());
+        verify(productRepository, never())
+                .save(any(Product.class));
     }
 }

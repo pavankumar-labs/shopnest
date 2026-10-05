@@ -56,7 +56,7 @@ public class SecurityConfig {
                         .authenticationEntryPoint(entryPoint)
                         .accessDeniedHandler(accessDenied))
                 .authorizeHttpRequests(auth->auth
-                        .requestMatchers("/api/auth/**","/api/webhook/razorpay","/api/products/**").permitAll()
+                        .requestMatchers("/api/auth/**","/api/webhooks/razorpay","/api/products/**").permitAll()
                         .requestMatchers("/actuator/health").permitAll()
                         .requestMatchers("/actuator/**").hasAuthority("ROLE_ADMIN")
                         .requestMatchers("/swagger-ui/**", "/api-docs/**","/api-docs","/swagger-ui.html").permitAll()
