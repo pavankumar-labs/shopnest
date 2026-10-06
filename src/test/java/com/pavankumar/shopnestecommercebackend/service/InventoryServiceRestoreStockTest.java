@@ -9,18 +9,23 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest
 class InventoryServiceRestoreStockTest extends AbstractIntegrationTest {
     @Autowired
     private CartRepository cartRepository;
+
+    @Autowired
+    private PaymentRepository paymentRepository;
 
     @Autowired
     private CategoryRepository categoryRepository;
@@ -47,6 +52,7 @@ class InventoryServiceRestoreStockTest extends AbstractIntegrationTest {
     @BeforeEach
     void setUp() {
         cartRepository.deleteAll();
+        paymentRepository.deleteAll();
         orderRepository.deleteAll();
         addressRepository.deleteAll();
         productRepository.deleteAll();
@@ -77,13 +83,12 @@ class InventoryServiceRestoreStockTest extends AbstractIntegrationTest {
                                         OrderStatus.CANCELLED)
                                 .stockRestored(stockRestored)
                                 .build());
-
         OrderItem item =
                 TestData.orderItem(order, product)
                         .quantity(quantity)
                         .build();
-
         order.getItems().add(item);
+
         return orderRepository.save(order);
     }
 
@@ -94,7 +99,6 @@ class InventoryServiceRestoreStockTest extends AbstractIntegrationTest {
                         TestData.product(1, category)
                                 .stock(5)
                                 .build());
-
         Order order =
                 persistOrderWithItem(
                         product,
@@ -106,6 +110,7 @@ class InventoryServiceRestoreStockTest extends AbstractIntegrationTest {
                 productRepository
                         .findById(product.getId())
                         .orElseThrow();
+
         Order reloadedOrder =
                 orderRepository
                         .findById(order.getId())
@@ -122,7 +127,6 @@ class InventoryServiceRestoreStockTest extends AbstractIntegrationTest {
                         TestData.product(2, category)
                                 .stock(5)
                                 .build());
-
         Order order =
                 persistOrderWithItem(
                         product,
@@ -161,7 +165,6 @@ class InventoryServiceRestoreStockTest extends AbstractIntegrationTest {
                 productRepository
                         .findById(product.getId())
                         .orElseThrow();
-
         assertEquals(5, reloadedProduct.getStock());
     }
 
@@ -173,7 +176,6 @@ class InventoryServiceRestoreStockTest extends AbstractIntegrationTest {
                         TestData.product(4, category)
                                 .stock(5)
                                 .build());
-
         Order order =
                 persistOrderWithItem(
                         product,
@@ -186,21 +188,17 @@ class InventoryServiceRestoreStockTest extends AbstractIntegrationTest {
 
         CountDownLatch startLatch =
                 new CountDownLatch(1);
-
         AtomicInteger unexpectedFailures =
                 new AtomicInteger(0);
 
         Future<?>[] futures =
                 new Future<?>[threadCount];
-
         for (int i = 0; i < threadCount; i++) {
 
             futures[i] =
                     executor.submit(() -> {
-
                         try {
                             startLatch.await();
-
                             inventoryService.restoreStock(order);
 
                         } catch (Exception e) {
@@ -210,7 +208,6 @@ class InventoryServiceRestoreStockTest extends AbstractIntegrationTest {
         }
 
         startLatch.countDown();
-
         for (Future<?> future : futures) {
             future.get(
                     15,
@@ -228,7 +225,6 @@ class InventoryServiceRestoreStockTest extends AbstractIntegrationTest {
                 productRepository
                         .findById(product.getId())
                         .orElseThrow();
-
         assertEquals(
                 8,
                 reloadedProduct.getStock(),
