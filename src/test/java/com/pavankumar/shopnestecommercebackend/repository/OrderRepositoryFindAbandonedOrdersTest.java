@@ -98,13 +98,21 @@ class OrderRepositoryFindAbandonedOrdersTest extends AbstractIntegrationTest {
 
     @Test
     void findAbandonedOrders_noMatchingOrders_returnsEmptyListNotNull() {
+
         setUpSharedGraph();
 
-        List<Order> result = orderRepository.findAbandonedOrdersWithItems(
-                OrderStatus.PENDING, LocalDateTime.now());
+        LocalDateTime cutoff =
+                LocalDateTime.of(2000, 1, 1, 0, 0);
+
+        List<Order> result =
+                orderRepository.findAbandonedOrdersWithItems(
+                        OrderStatus.PENDING,
+                        cutoff);
 
         assertNotNull(result);
-        assertTrue(result.isEmpty());
+        assertTrue(
+                result.isEmpty(),
+                "no PENDING order should exist before the historical cutoff");
     }
 
     @Test
