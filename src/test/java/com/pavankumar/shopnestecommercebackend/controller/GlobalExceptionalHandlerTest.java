@@ -93,7 +93,7 @@ class GlobalExceptionalHandlerTest extends AbstractIntegrationTest {
     @Transactional
     void resourceNotFoundException_returns404() throws Exception {
         User user = userRepository.save(
-                TestData.user(1).build()
+                TestData.uniqueUser().build()
         );
         authenticateAs(user);
 
@@ -117,10 +117,10 @@ class GlobalExceptionalHandlerTest extends AbstractIntegrationTest {
     void unauthorisedException_crossUserCartItemRemoval_returns403()
             throws Exception {
         User owner = userRepository.save(
-                TestData.user(1).build()
+                TestData.uniqueUser().build()
         );
         User attacker = userRepository.save(
-                TestData.user(2).build()
+                TestData.uniqueUser().build()
         );
 
         Cart ownerCart = cartRepository.save(
@@ -129,7 +129,7 @@ class GlobalExceptionalHandlerTest extends AbstractIntegrationTest {
                         .build()
         );
         Category category = categoryRepository.save(
-                TestData.category(1).build()
+                TestData.uniqueCategory().build()
         );
         Product product = productRepository.save(
                 TestData.product(1, category).build()
@@ -149,7 +149,6 @@ class GlobalExceptionalHandlerTest extends AbstractIntegrationTest {
         );
 
         authenticateAs(attacker);
-
         mockMvc.perform(
                         delete("/api/cart/remove/" + ownerItem.getId())
                 )
@@ -167,7 +166,7 @@ class GlobalExceptionalHandlerTest extends AbstractIntegrationTest {
     void accessDeniedException_nonAdminHittingAdminEndpoint_returns403()
             throws Exception {
         User regularUser = userRepository.save(
-                TestData.user(1).build()
+                TestData.uniqueUser().build()
         );
         authenticateAs(regularUser);
 
@@ -182,13 +181,18 @@ class GlobalExceptionalHandlerTest extends AbstractIntegrationTest {
     @Transactional
     void resourceAlreadyExistsException_duplicateEmailRegistration_returns409()
             throws Exception {
-        userRepository.save(
-                TestData.user(1).build()
-        );
+        String duplicateEmail = "duplicate-" +
+                java.util.UUID.randomUUID() +
+                "@test.com";
+
+        User existingUser = TestData.uniqueUser()
+                .email(duplicateEmail)
+                .build();
+        userRepository.save(existingUser);
 
         RegisterRequest request = new RegisterRequest();
         request.setName("Duplicate User");
-        request.setEmail("user1@test.com");
+        request.setEmail(duplicateEmail);
         request.setPassword("password123");
 
         mockMvc.perform(
@@ -202,7 +206,8 @@ class GlobalExceptionalHandlerTest extends AbstractIntegrationTest {
                 .andExpect(
                         jsonPath("$.message")
                                 .value(
-                                        "Email already registered: user1@test.com"
+                                        "Email already registered: " +
+                                                duplicateEmail
                                 )
                 );
     }
@@ -211,14 +216,15 @@ class GlobalExceptionalHandlerTest extends AbstractIntegrationTest {
     @Transactional
     void badRequestException_cartAddingMoreThanAvailable_returns400()
             throws Exception {
+
         User user = userRepository.save(
-                TestData.user(1).build()
+                TestData.uniqueUser().build()
         );
 
         authenticateAs(user);
 
         Category category = categoryRepository.save(
-                TestData.category(1).build()
+                TestData.uniqueCategory().build()
         );
         Product product = productRepository.save(
                 TestData.product(1, category)
@@ -229,7 +235,6 @@ class GlobalExceptionalHandlerTest extends AbstractIntegrationTest {
         AddToCartRequest request = new AddToCartRequest();
         request.setProductId(product.getId());
         request.setQuantity(5);
-
         mockMvc.perform(
                         post("/api/cart/add")
                                 .contentType(MediaType.APPLICATION_JSON)
@@ -251,7 +256,7 @@ class GlobalExceptionalHandlerTest extends AbstractIntegrationTest {
     void methodArgumentNotValidException_invalidQuantity_returns400WithFieldErrorMessage()
             throws Exception {
         User user = userRepository.save(
-                TestData.user(1).build()
+                TestData.uniqueUser().build()
         );
 
         authenticateAs(user);
@@ -259,7 +264,6 @@ class GlobalExceptionalHandlerTest extends AbstractIntegrationTest {
         AddToCartRequest request = new AddToCartRequest();
         request.setProductId(1L);
         request.setQuantity(0);
-
         mockMvc.perform(
                         post("/api/cart/add")
                                 .contentType(MediaType.APPLICATION_JSON)
@@ -281,7 +285,7 @@ class GlobalExceptionalHandlerTest extends AbstractIntegrationTest {
     void unhandledException_returns500_withGenericSanitizedMessage()
             throws Exception {
         User user = userRepository.save(
-                TestData.user(1).build()
+                TestData.uniqueUser().build()
         );
         authenticateAs(user);
 
