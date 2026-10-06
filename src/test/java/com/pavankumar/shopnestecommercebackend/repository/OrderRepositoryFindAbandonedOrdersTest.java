@@ -27,20 +27,51 @@ class OrderRepositoryFindAbandonedOrdersTest extends AbstractIntegrationTest {
     private UserAddress address;
 
     private void setUpSharedGraph() {
-        category = entityManager.persist(TestData.uniqueCategory().build());
-        product = entityManager.persist(TestData.product(1, category).build());
-        user = entityManager.persist(TestData.uniqueUser().build());
-        address = entityManager.persist(TestData.address(user).build());
+        category = entityManager.persist(
+                TestData.uniqueCategory().build()
+        );
+
+        product = entityManager.persist(
+                TestData.product(1, category).build()
+        );
+
+        user = entityManager.persist(
+                TestData.uniqueUser().build()
+        );
+
+        address = entityManager.persist(
+                TestData.address(user).build()
+        );
     }
 
-    private Order persistOrderWithCreatedAt(OrderStatus status, LocalDateTime createdAt) {
-        Order savedOrder = entityManager.persist(TestData.order(user, address, status).build());
-        entityManager.persist(TestData.orderItem(savedOrder, product).build());
+    private Order persistOrderWithCreatedAt(
+            OrderStatus status,
+            LocalDateTime createdAt) {
+
+        Order savedOrder = entityManager.persist(
+                TestData.order(
+                        user,
+                        address,
+                        status
+                ).build()
+        );
+
+        entityManager.persist(
+                TestData.orderItem(
+                        savedOrder,
+                        product
+                ).build()
+        );
+
         entityManager.getEntityManager()
-                .createQuery("update Order o set o.createdAt = :createdAt where o.id = :id")
+                .createQuery(
+                        "update Order o set o.createdAt = :createdAt " +
+                                "where o.id = :id"
+                )
                 .setParameter("createdAt", createdAt)
                 .setParameter("id", savedOrder.getId())
                 .executeUpdate();
+
         entityManager.flush();
         entityManager.clear();
 
@@ -50,91 +81,200 @@ class OrderRepositoryFindAbandonedOrdersTest extends AbstractIntegrationTest {
     @Test
     void findAbandonedOrders_matchingStatusAndOldEnough_isReturned() {
         setUpSharedGraph();
-        LocalDateTime cutoff = LocalDateTime.now().minusHours(1);
-        Order oldPendingOrder = persistOrderWithCreatedAt(OrderStatus.PENDING, cutoff.minusMinutes(30));
 
-        List<Order> result = orderRepository.findAbandonedOrdersWithItems(OrderStatus.PENDING, cutoff);
+        LocalDateTime cutoff =
+                LocalDateTime.now().minusHours(1);
+
+        Order oldPendingOrder =
+                persistOrderWithCreatedAt(
+                        OrderStatus.PENDING,
+                        cutoff.minusMinutes(30)
+                );
+
+        List<Order> result =
+                orderRepository.findAbandonedOrdersWithItems(
+                        OrderStatus.PENDING,
+                        cutoff
+                );
 
         assertEquals(1, result.size());
-        assertEquals(oldPendingOrder.getId(), result.get(0).getId());
+        assertEquals(
+                oldPendingOrder.getId(),
+                result.get(0).getId()
+        );
     }
 
     @Test
     void findAbandonedOrders_pendingButTooRecent_isExcluded() {
         setUpSharedGraph();
-        LocalDateTime cutoff = LocalDateTime.now().minusHours(1);
-        persistOrderWithCreatedAt(OrderStatus.PENDING, cutoff.plusMinutes(30));
 
-        List<Order> result = orderRepository.findAbandonedOrdersWithItems(OrderStatus.PENDING, cutoff);
+        LocalDateTime cutoff =
+                LocalDateTime.now().minusHours(1);
 
-        assertTrue(result.isEmpty(),
-                "an order created after the cutoff must not be treated as abandoned");
+        persistOrderWithCreatedAt(
+                OrderStatus.PENDING,
+                cutoff.plusMinutes(30)
+        );
+
+        List<Order> result =
+                orderRepository.findAbandonedOrdersWithItems(
+                        OrderStatus.PENDING,
+                        cutoff
+                );
+
+        assertTrue(
+                result.isEmpty(),
+                "an order created after the cutoff must not be treated as abandoned"
+        );
     }
 
     @Test
     void findAbandonedOrders_oldEnoughButWrongStatus_isExcluded() {
         setUpSharedGraph();
-        LocalDateTime cutoff = LocalDateTime.now().minusHours(1);
-        persistOrderWithCreatedAt(OrderStatus.CONFIRMED, cutoff.minusMinutes(30));
 
-        List<Order> result = orderRepository.findAbandonedOrdersWithItems(OrderStatus.PENDING, cutoff);
+        LocalDateTime cutoff =
+                LocalDateTime.now().minusHours(1);
 
-        assertTrue(result.isEmpty(),
-                "a CONFIRMED order must never be picked up by the abandoned-PENDING-order query");
+        persistOrderWithCreatedAt(
+                OrderStatus.CONFIRMED,
+                cutoff.minusMinutes(30)
+        );
+
+        List<Order> result =
+                orderRepository.findAbandonedOrdersWithItems(
+                        OrderStatus.PENDING,
+                        cutoff
+                );
+
+        assertTrue(
+                result.isEmpty(),
+                "a CONFIRMED order must never be picked up by the abandoned-PENDING-order query"
+        );
     }
 
     @Test
     void findAbandonedOrders_itemsAndProductAreEagerlyLoaded_noLazyInitializationException() {
         setUpSharedGraph();
-        LocalDateTime cutoff = LocalDateTime.now().minusHours(1);
-        persistOrderWithCreatedAt(OrderStatus.PENDING, cutoff.minusMinutes(30));
-
-        List<Order> result = orderRepository.findAbandonedOrdersWithItems(OrderStatus.PENDING, cutoff);
-        Order fetchedOrder = result.get(0);
-
-        assertEquals(1, fetchedOrder.getItems().size());
-        assertEquals(product.getName(), fetchedOrder.getItems().get(0).getProduct().getName());
-    }
-
-    @Test
-    void findAbandonedOrders_noMatchingOrders_returnsEmptyListNotNull() {
-
-        setUpSharedGraph();
 
         LocalDateTime cutoff =
-                LocalDateTime.of(2000, 1, 1, 0, 0);
+                LocalDateTime.now().minusHours(1);
+
+        persistOrderWithCreatedAt(
+                OrderStatus.PENDING,
+                cutoff.minusMinutes(30)
+        );
 
         List<Order> result =
                 orderRepository.findAbandonedOrdersWithItems(
                         OrderStatus.PENDING,
-                        cutoff);
+                        cutoff
+                );
+
+        Order fetchedOrder = result.get(0);
+
+        assertEquals(
+                1,
+                fetchedOrder.getItems().size()
+        );
+
+        assertEquals(
+                product.getName(),
+                fetchedOrder.getItems()
+                        .get(0)
+                        .getProduct()
+                        .getName()
+        );
+    }
+
+    @Test
+    void findAbandonedOrders_noMatchingOrders_returnsEmptyListNotNull() {
+        setUpSharedGraph();
+
+        LocalDateTime cutoff =
+                LocalDateTime.now().minusHours(1);
+
+        persistOrderWithCreatedAt(
+                OrderStatus.PENDING,
+                cutoff.plusMinutes(30)
+        );
+
+        List<Order> result =
+                orderRepository.findAbandonedOrdersWithItems(
+                        OrderStatus.PENDING,
+                        cutoff
+                );
 
         assertNotNull(result);
+
         assertTrue(
                 result.isEmpty(),
-                "no PENDING order should exist before the historical cutoff");
+                "a PENDING order newer than the cutoff must not be returned"
+        );
     }
 
     @Test
     void findAbandonedOrders_orderWithMultipleItems_returnedOnceNotDuplicated() {
         setUpSharedGraph();
-        LocalDateTime cutoff = LocalDateTime.now().minusHours(1);
 
-        Order savedOrder = entityManager.persist(TestData.order(user, address, OrderStatus.PENDING).build());
-        entityManager.persist(TestData.orderItem(savedOrder, product).build());
-        entityManager.persist(TestData.orderItem(savedOrder, product).build());
+        LocalDateTime cutoff =
+                LocalDateTime.now().minusHours(1);
+
+        Order savedOrder =
+                entityManager.persist(
+                        TestData.order(
+                                user,
+                                address,
+                                OrderStatus.PENDING
+                        ).build()
+                );
+
+        entityManager.persist(
+                TestData.orderItem(
+                        savedOrder,
+                        product
+                ).build()
+        );
+
+        entityManager.persist(
+                TestData.orderItem(
+                        savedOrder,
+                        product
+                ).build()
+        );
+
         entityManager.getEntityManager()
-                .createQuery("update Order o set o.createdAt = :createdAt where o.id = :id")
-                .setParameter("createdAt", cutoff.minusMinutes(30))
-                .setParameter("id", savedOrder.getId())
+                .createQuery(
+                        "update Order o set o.createdAt = :createdAt " +
+                                "where o.id = :id"
+                )
+                .setParameter(
+                        "createdAt",
+                        cutoff.minusMinutes(30)
+                )
+                .setParameter(
+                        "id",
+                        savedOrder.getId()
+                )
                 .executeUpdate();
+
         entityManager.flush();
         entityManager.clear();
 
-        List<Order> result = orderRepository.findAbandonedOrdersWithItems(OrderStatus.PENDING, cutoff);
+        List<Order> result =
+                orderRepository.findAbandonedOrdersWithItems(
+                        OrderStatus.PENDING,
+                        cutoff
+                );
 
-        assertEquals(1, result.size(),
-                "distinct must collapse the multi-row join back to one Order, not one per item");
-        assertEquals(2, result.get(0).getItems().size());
+        assertEquals(
+                1,
+                result.size(),
+                "distinct must collapse the multi-row join back to one Order, not one per item"
+        );
+
+        assertEquals(
+                2,
+                result.get(0).getItems().size()
+        );
     }
 }

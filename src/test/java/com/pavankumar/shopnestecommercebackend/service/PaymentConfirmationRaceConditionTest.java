@@ -10,10 +10,9 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import java.math.BigDecimal;
 import java.util.List;
 import java.util.concurrent.*;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.times;
@@ -50,12 +49,14 @@ class PaymentConfirmationRaceConditionTest extends AbstractIntegrationTest {
 
     private static final String RAZORPAY_KEY_SECRET =
             "test-razorpay-key-secret";
+
     private static final String WEBHOOK_SECRET =
             "test-webhook-secret-12345";
 
     private String clientSignatureFor(
             String razorpayOrderId,
             String razorpayPaymentId) {
+
         return HmacUtils.hmacSha256Hex(
                 RAZORPAY_KEY_SECRET,
                 razorpayOrderId + "|" + razorpayPaymentId
@@ -73,18 +74,18 @@ class PaymentConfirmationRaceConditionTest extends AbstractIntegrationTest {
             String razorpayOrderId,
             String razorpayPaymentId) {
         return """
-            {
-              "event": "payment.captured",
-              "payload": {
-                "payment": {
-                  "entity": {
-                    "order_id": "%s",
-                    "id": "%s"
+                {
+                  "event": "payment.captured",
+                  "payload": {
+                    "payment": {
+                      "entity": {
+                        "order_id": "%s",
+                        "id": "%s"
+                      }
+                    }
                   }
                 }
-              }
-            }
-            """.formatted(
+                """.formatted(
                 razorpayOrderId,
                 razorpayPaymentId
         );
@@ -99,47 +100,43 @@ class PaymentConfirmationRaceConditionTest extends AbstractIntegrationTest {
     private Fixture buildPendingOrderWithPayment(
             int sequence,
             String razorpayOrderId) {
-        Category category =
-                categoryRepository.save(
-                        TestData.uniqueCategory().build());
 
-        Product product =
-                productRepository.save(
-                        TestData.product(sequence, category).build());
-        User user =
-                userRepository.save(
-                        TestData.uniqueUser().build());
-        UserAddress address =
-                addressRepository.save(
-                        TestData.address(user).build());
-        Order order =
-                TestData.order(
-                                user,
-                                address,
-                                OrderStatus.PENDING)
-                        .build();
+        Category category = categoryRepository.save(
+                TestData.uniqueCategory().build()
+        );
+        Product product = productRepository.save(
+                TestData.product(sequence, category).build()
+        );
+        User user = userRepository.save(
+                TestData.uniqueUser().build()
+        );
+        UserAddress address = addressRepository.save(
+                TestData.address(user).build()
+        );
+        Order order = TestData.order(
+                        user,
+                        address,
+                        OrderStatus.PENDING
+                )
+                .build();
 
         order.getItems().add(
-                TestData.orderItem(
+                TestData.orderItem(order, product).build()
+        );
+
+        order = orderRepository.save(order);
+        Payment payment = paymentRepository.save(
+                TestData.payment(
                         order,
-                        product).build());
-        order =
-                orderRepository.save(order);
-        Payment payment =
-                paymentRepository.save(
-                        TestData.payment(
-                                        order,
-                                        razorpayOrderId)
-                                .build());
+                        razorpayOrderId
+                ).build()
+        );
 
         return new Fixture(
                 user,
                 order,
-                payment);
-    }
-
-    private BigDecimal matchingAmount(BigDecimal expected) {
-        return expected;
+                payment
+        );
     }
 
     @Test
@@ -151,7 +148,8 @@ class PaymentConfirmationRaceConditionTest extends AbstractIntegrationTest {
         Fixture fixture =
                 buildPendingOrderWithPayment(
                         1,
-                        razorpayOrderId);
+                        razorpayOrderId
+                );
 
         PaymentVerifyRequest clientRequest =
                 new PaymentVerifyRequest(
@@ -159,40 +157,41 @@ class PaymentConfirmationRaceConditionTest extends AbstractIntegrationTest {
                         razorpayPaymentId,
                         clientSignatureFor(
                                 razorpayOrderId,
-                                razorpayPaymentId));
+                                razorpayPaymentId
+                        )
+                );
 
         String webhookPayload =
                 capturedWebhookPayload(
                         razorpayOrderId,
-                        razorpayPaymentId);
+                        razorpayPaymentId
+                );
         String webhookSignature =
                 webhookSignatureFor(webhookPayload);
 
         ExecutorService executor =
                 Executors.newFixedThreadPool(2);
-
         CountDownLatch readyLatch =
                 new CountDownLatch(2);
         CountDownLatch startLatch =
                 new CountDownLatch(1);
 
         Callable<String> viaClient = () -> {
-
             readyLatch.countDown();
             startLatch.await();
-
             return paymentService.verifyPayment(
-                    clientRequest);
+                    clientRequest
+            );
         };
-        Callable<String> viaWebhook = () -> {
 
+        Callable<String> viaWebhook = () -> {
             readyLatch.countDown();
             startLatch.await();
-
             return webhookService.handleWebhook(
                     webhookPayload,
                     webhookSignature,
-                    "evt_race_1");
+                    "evt_race_1"
+            );
         };
 
         Future<String> clientResult =
@@ -200,29 +199,33 @@ class PaymentConfirmationRaceConditionTest extends AbstractIntegrationTest {
         Future<String> webhookResult =
                 executor.submit(viaWebhook);
 
-        assertTrue(
+        assertEquals(
+                true,
                 readyLatch.await(
                         5,
-                        TimeUnit.SECONDS),
-                "both concurrent tasks should become ready");
+                        TimeUnit.SECONDS
+                ),
+                "both concurrent tasks should become ready"
+        );
 
         startLatch.countDown();
-
         String clientOutcome =
                 clientResult.get(
                         10,
-                        TimeUnit.SECONDS);
+                        TimeUnit.SECONDS
+                );
         String webhookOutcome =
                 webhookResult.get(
                         10,
-                        TimeUnit.SECONDS);
+                        TimeUnit.SECONDS
+                );
 
         executor.shutdown();
-
         Payment reloadedPayment =
                 paymentRepository
                         .findById(fixture.payment().getId())
                         .orElseThrow();
+
         Order reloadedOrder =
                 orderRepository
                         .findById(fixture.order().getId())
@@ -230,26 +233,33 @@ class PaymentConfirmationRaceConditionTest extends AbstractIntegrationTest {
 
         assertEquals(
                 PaymentStatus.SUCCESS,
-                reloadedPayment.getStatus());
+                reloadedPayment.getStatus()
+        );
         assertEquals(
                 razorpayPaymentId,
-                reloadedPayment.getRazorpayPaymentId());
+                reloadedPayment.getRazorpayPaymentId()
+        );
         assertEquals(
                 OrderStatus.CONFIRMED,
-                reloadedOrder.getStatus());
+                reloadedOrder.getStatus()
+        );
 
         List<String> outcomes =
                 List.of(
                         clientOutcome,
-                        webhookOutcome);
+                        webhookOutcome
+                );
 
         long confirmedCount =
                 outcomes.stream()
                         .filter(o ->
                                 o.equals(
-                                        "Payment verified.  Order Confirmed.")
+                                        "Payment verified.  Order Confirmed."
+                                )
                                         || o.equals(
-                                        "Webhook processed successfully"))
+                                        "Webhook processed successfully"
+                                )
+                        )
                         .count();
 
         assertEquals(
@@ -257,31 +267,35 @@ class PaymentConfirmationRaceConditionTest extends AbstractIntegrationTest {
                 confirmedCount,
                 "exactly one path should have performed "
                         + "the confirmation; got: "
-                        + outcomes);
+                        + outcomes
+        );
         verify(
                 emailService,
-                times(1))
-                .sendOrderConfirmation(
-                        eq(fixture.user().getEmail()),
-                        eq(fixture.user().getName()),
-                        eq(fixture.order().getId()),
-                        argThat(
-                                amount ->
-                                        amount.compareTo(
-                                                fixture.order()
-                                                        .getTotalAmount()) == 0));
+                times(1)
+        ).sendOrderConfirmation(
+                eq(fixture.user().getEmail()),
+                eq(fixture.user().getName()),
+                eq(fixture.order().getId()),
+                argThat(amount ->
+                        amount.compareTo(
+                                fixture.order().getTotalAmount()
+                        ) == 0
+                )
+        );
     }
 
     @Test
     void verifyPayment_calledTwiceSequentially_secondCallShortCircuits()
             throws Exception {
+
         String razorpayOrderId = "order_seq_1";
         String razorpayPaymentId = "pay_seq_1";
 
         Fixture fixture =
                 buildPendingOrderWithPayment(
                         2,
-                        razorpayOrderId);
+                        razorpayOrderId
+                );
 
         PaymentVerifyRequest request =
                 new PaymentVerifyRequest(
@@ -289,7 +303,9 @@ class PaymentConfirmationRaceConditionTest extends AbstractIntegrationTest {
                         razorpayPaymentId,
                         clientSignatureFor(
                                 razorpayOrderId,
-                                razorpayPaymentId));
+                                razorpayPaymentId
+                        )
+                );
 
         String firstResult =
                 paymentService.verifyPayment(request);
@@ -298,21 +314,24 @@ class PaymentConfirmationRaceConditionTest extends AbstractIntegrationTest {
 
         assertEquals(
                 "Payment verified.  Order Confirmed.",
-                firstResult);
+                firstResult
+        );
         assertEquals(
                 "Payment already verified",
-                secondResult);
+                secondResult
+        );
         verify(
                 emailService,
-                times(1))
-                .sendOrderConfirmation(
-                        eq(fixture.user().getEmail()),
-                        eq(fixture.user().getName()),
-                        eq(fixture.order().getId()),
-                        argThat(
-                                amount ->
-                                        amount.compareTo(
-                                                fixture.order()
-                                                        .getTotalAmount()) == 0));
+                times(1)
+        ).sendOrderConfirmation(
+                eq(fixture.user().getEmail()),
+                eq(fixture.user().getName()),
+                eq(fixture.order().getId()),
+                argThat(amount ->
+                        amount.compareTo(
+                                fixture.order().getTotalAmount()
+                        ) == 0
+                )
+        );
     }
 }
