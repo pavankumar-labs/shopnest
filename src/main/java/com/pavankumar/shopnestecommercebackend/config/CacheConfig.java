@@ -19,23 +19,26 @@ import java.util.Map;
 @Configuration
 @EnableCaching
 public class CacheConfig {
-
     public static final String PRODUCTS = "products";
     public static final String CATEGORIES = "categories";
 
     @Bean
     public CacheManager cacheManager(RedisConnectionFactory factory) {
-
         ObjectMapper objectMapper = new ObjectMapper();
         objectMapper.registerModule(new JavaTimeModule());
-        objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+        objectMapper.disable(
+                SerializationFeature.WRITE_DATES_AS_TIMESTAMPS
+        );
 
         GenericJackson2JsonRedisSerializer serializer =
-                new GenericJackson2JsonRedisSerializer(objectMapper);
+                GenericJackson2JsonRedisSerializer
+                        .builder()
+                        .objectMapper(objectMapper)
+                        .defaultTyping(true)
+                        .build();
 
         RedisSerializationContext.SerializationPair<Object> serializerPair =
-                RedisSerializationContext
-                        .SerializationPair
+                RedisSerializationContext.SerializationPair
                         .fromSerializer(serializer);
 
         RedisCacheConfiguration defaultConfig =
@@ -45,11 +48,13 @@ public class CacheConfig {
                         .disableCachingNullValues()
                         .serializeValuesWith(serializerPair);
 
-        Map<String, RedisCacheConfiguration> configs = new HashMap<>();
+        Map<String, RedisCacheConfiguration> configs =
+                new HashMap<>();
 
-        configs.put(CATEGORIES, defaultConfig
-                .entryTtl(Duration.ofHours(1)));
-
+        configs.put(
+                CATEGORIES,
+                defaultConfig.entryTtl(Duration.ofHours(1))
+        );
         return RedisCacheManager
                 .builder(factory)
                 .cacheDefaults(defaultConfig)
